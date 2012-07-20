@@ -86,7 +86,7 @@ namespace http {
         };
         
         // TODO: should this be inline?
-        inline std::string get_string(value c) {
+        inline const std::string get_string(value c) {
             switch (c) {
                 case CONTINUE:
                     return "Continue";

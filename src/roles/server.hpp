@@ -728,7 +728,7 @@ void server<endpoint>::connection<connection_type>::handle_write_response(
 {
     if (error) {
         m_endpoint.m_elog->at(log::elevel::RERROR) 
-            << "Network error writing handshake respons. code: " << error 
+            << "Network error writing handshake response code: " << error 
             << log::endl;
         
         m_connection.terminate(false);

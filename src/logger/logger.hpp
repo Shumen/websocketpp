@@ -25,8 +25,8 @@
  * 
  */
 
-#ifndef ZS_LOGGER_HPP
-#define ZS_LOGGER_HPP
+#ifndef WEBSOCKETPP_LOGGER_HPP
+#define WEBSOCKETPP_LOGGER_HPP
 
 #include <iostream>
 #include <sstream>
@@ -161,4 +161,4 @@ logger<level_type>& endl(logger<level_type>& out)
 }
 }
 
-#endif // ZS_LOGGER_HPP
+#endif // WEBSOCKETPP_LOGGER_HPP

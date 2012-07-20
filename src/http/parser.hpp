@@ -138,8 +138,13 @@ private:
 class request : public parser {
 public: 
     // parse a complete header (ie \r\n\r\n MUST be in the input stream)
+	// call parser::consume() to validate the HTTP request
     bool parse_complete(std::istream& s) {
         std::string request;
+		//istream_iterator<char> end; // end-of-stream iterator
+		//istream_iterator<char> it(s); // istream iterator
+		//refer to parse() in
+		//http://www.boost.org/libs/asio/example/http/server3/request_parser.cpp
         
         // get status line
         std::getline(s, request);
@@ -201,6 +206,7 @@ private:
 class response : public parser {
 public:
     // parse a complete header (ie \r\n\r\n MUST be in the input stream)
+	// call parser::consume() to validate the HTTP response
     bool parse_complete(std::istream& s) {
         std::string response;
         
