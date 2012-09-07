@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, Peter Thorson. All rights reserved.
+ * Copyright (c) 2012, Shumin Huang. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -25,49 +25,47 @@
  * 
  */
 
-#include "chat.hpp"
+#ifndef HTTP_MIME_HPP
+#define HTTP_MIME_HPP
 
-#include "../../src/websocketpp.hpp"
-#include <boost/asio.hpp>
+#include <map>
+#include <string>
+#include <utility> // std::pair
 
-#include <iostream>
+namespace websocketpp {
+namespace http {
+namespace mime {
+	typedef std::map<std::string, std::string> mime_type;
+	typedef mime_type::value_type mime_pair;
 
-using namespace websocketchat;
-using websocketpp::server;
+	// this is to initialize mime_types only without exposure to outside
+	static const mime_pair pairs[] = {
+		std::make_pair(".html", "text/html"),
+		std::make_pair(".htm", "text/html"),
+		std::make_pair(".css", "text/css"),
+		std::make_pair(".js", "text/javascript"),
+		std::make_pair(".jpg", "image/jpeg"),
+		std::make_pair(".png", "image/png"),
+		std::make_pair(".gif", "image/gif"),
+		std::make_pair(".ico", "image/x-icon"),
+		std::make_pair(".json", "application/json"),
+		std::make_pair(".xhtml", "application/xhtml+xml"),
+		//std::make_pair(".binary", "application/octet-stream"), // add other
+	};
 
-int main(int argc, char* argv[]) {
-    unsigned short int port = 9003;
-    
-    if (argc == 2) {
-        // TODO: input validation?
-        port = atoi(argv[1]);
-    }
-    
-    try {
-        // create an instance of our handler
-        server::handler::ptr handler(new chat_server_handler());
-        
-        // create a server that listens on port `port` and uses our handler
-        server endpoint(handler);
-        
-        endpoint.alog().set_level(websocketpp::log::alevel::CONNECT);
-        endpoint.alog().set_level(websocketpp::log::alevel::DISCONNECT);
-        
-        endpoint.elog().set_level(websocketpp::log::elevel::RERROR);
-        endpoint.elog().set_level(websocketpp::log::elevel::FATAL);
-        
-        // setup server settings
-        // Chat server should only be receiving small text messages, reduce max
-        // message size limit slightly to save memory, improve performance, and 
-        // guard against DoS attacks.
-        //server->set_max_message_size(0xFFFF); // 64KiB
-        
-        std::cout << "Starting chat server on port " << port << std::endl;
-        
-        endpoint.listen(port);
-    } catch (std::exception& e) {
-        std::cerr << "Exception: " << e.what() << std::endl;
-    }
-    
-    return 0;
-}
+	const mime_type mime_types(pairs, pairs + sizeof(pairs)/sizeof(pairs[0]));
+
+	/// Convert a file extension into a MIME type.
+	inline const std::string& extension_to_mime(const std::string& extension) {
+		static const std::string mime_default("text/plain");
+		mime_type::const_iterator it = mime_types.find(extension);
+		if (it != mime_types.end())
+			return it->second;
+		else
+			return mime_default;
+	}
+} // namespace mime
+} // namespace http
+} // namespace websocketpp
+
+#endif // HTTP_MIME_HPP

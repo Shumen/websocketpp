@@ -47,7 +47,7 @@ void chat_server_handler::validate(connection_ptr con) {
     // Require specific origin example
     if (con->get_origin() != "http://127.0.0.1") {
         err << "Request from unrecognized origin: " << con->get_origin();
-        throw(websocketpp::http::exception(err.str(),websocketpp::http::status_code::FORBIDDEN));
+        //throw(websocketpp::http::exception(err.str(),websocketpp::http::status_code::FORBIDDEN));
     }
 }
 
@@ -146,36 +146,29 @@ void chat_server_handler::on_message(connection_ptr con, message_ptr msg) {
 void chat_server_handler::http(connection_ptr con)
 {
 	boost::filesystem::path p(boost::filesystem::current_path());
-	p /= (boost::ends_with(con->get_resource(), "/") ? "chat.html" : con->get_resource());
-	p.normalize();
-	//std::cerr << p.string() << std::endl; // debuging
+	p /= (boost::ends_with(con->get_resource(), "/") ? "chat_client.html" : con->get_resource());
 
-	if (boost::filesystem::exists(p) == false) {
+	if (boost::filesystem::exists(p)) {
+		boost::filesystem::ifstream f(p, std::ios::binary);
+		if (!f.fail()) {
+			std::string body;
+			body.reserve(boost::filesystem::file_size(p));
+			body.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+			con->set_body(body);
+			con->replace_response_header("Content-Type", websocketpp::http::mime::extension_to_mime(p.extension().string()));
+			f.close();
+		} else { // including directory or regular file without read permissions
+			throw (websocketpp::http::exception("Request for invalid resource",
+						websocketpp::http::status_code::FORBIDDEN,
+						"Request for invalid resource",
+						"<html><head><title>403</title></head><body>Invalid Request</body></html>"));
+		}
+
+	} else {
 		throw (websocketpp::http::exception("Request for unknown resource",
 					websocketpp::http::status_code::NOT_FOUND,
 					"Request for unknown resource",
-					"<html><body>404: File Not Found!</body></html>"));
-	}
-
-	if (boost::filesystem::is_regular_file(p) == false) {
-		throw (websocketpp::http::exception("Request for invalid resource",
-					websocketpp::http::status_code::FORBIDDEN,
-					"Request for invalid resource",
-					"<html><body>403: Invalid Request</body></html>"));
-	}
-
-	boost::filesystem::ifstream f(p, std::ios::binary);
-	if (!f.fail()) {
-		std::string body;
-		body.reserve(boost::filesystem::file_size(p));
-		body.assign((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-		con->set_body(body);
-		f.close();
-	} else {
-		throw (websocketpp::http::exception("Request for unreadable resource",
-					websocketpp::http::status_code::NOT_FOUND,
-					"Request for unreadable resource",
-					"<html><body>404: File Not Readable</body></html>"));
+					"<html><head><title>404</title></head><body>File Not Found!</body></html>"));
 	}
 
 	return;

@@ -30,6 +30,7 @@
 
 #include "common.hpp"
 #include "http/parser.hpp"
+#include "http/mime.hpp"
 #include "logger/logger.hpp"
 
 #include "roles/server.hpp"

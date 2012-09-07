@@ -167,7 +167,7 @@ public:
     void fill_utf8(std::string& data,size_t size,bool random = true) {
         if (random) {
             uint32_t val;
-            for (int i = 0; i < size; i++) {
+            for (size_t i = 0; i < size; i++) {
                 if (i%4 == 0) {
                     val = uint32_t(rand());
                 }
@@ -182,7 +182,7 @@ public:
     void fill_binary(std::string& data,size_t size,bool random = true) {
         if (random) {
             int32_t val;
-            for (int i = 0; i < size; i++) {
+            for (size_t i = 0; i < size; i++) {
                 if (i%4 == 0) {
                     val = rand();
                 }
