@@ -211,10 +211,18 @@ public:
                 std::numeric_limits<int32_t>::max()
              )) {}
     
+    connection_ptr get_connection();
+    
     connection_ptr get_connection(const std::string& u);
     
     connection_ptr connect(const std::string& u);
     connection_ptr connect(connection_ptr con);
+    
+    connection_ptr get(const std::string& u);
+    connection_ptr get(connection_ptr con);
+    
+    connection_ptr post(const std::string& u);
+    connection_ptr post(connection_ptr con);
     
     void run(bool perpetual = false);
     void end_perpetual();
@@ -350,6 +358,32 @@ void client<endpoint>::reset() {
 
 /// Returns a new connection 
 /**
+ * Creates and returns a pointer to a new connection suitable for passing
+ * to connect()/get()/post(). This method allows applying connection 
+ * specific settings before performing the connection, such as set uri and
+ * add http header.
+ * 
+ * Visibility: public
+ * State: Valid from IDLE or RUNNING, an exception is thrown otherwise
+ * Concurrency: callable from any thread
+ *
+ * @return The pointer to the new connection
+ */
+template <class endpoint>
+typename endpoint_traits<endpoint>::connection_ptr
+client<endpoint>::get_connection() {
+	connection_ptr con = m_endpoint.create_connection();
+	
+	if (!con) {
+		throw websocketpp::exception("get_connection called from invalid state",
+			websocketpp::error::INVALID_STATE);
+	}
+
+	return con;
+}
+
+/// Returns a new connection 
+/**
  * Creates and returns a pointer to a new connection to the given URI suitable for passing
  * to connect(). This method allows applying connection specific settings before 
  * performing the connection.
@@ -430,6 +464,54 @@ client<endpoint>::connect(const std::string& u) {
     return connect(get_connection(u));
 }
 
+/// Begin the http get connect process for the given connection.
+/**
+ * Initiates the async connect request for connection con.
+ * 
+ * Visibility: public
+ * Concurrency: callable from any thread
+ *
+ * @param con A pointer to the http get connection to connect
+ * @return The pointer to con
+ */
+template <class endpoint>
+typename endpoint_traits<endpoint>::connection_ptr
+client<endpoint>::get(connection_ptr con) {
+	/* TODO: re-implement connect() for http get operation */
+	return NULL;
+}
+
+/// Convenience method, equivalent to get(get_connection(u))
+template <class endpoint>
+typename endpoint_traits<endpoint>::connection_ptr
+client<endpoint>::get(const std::string& u) {
+    return get(get_connection(u));
+}
+
+/// Begin the http post connect process for the given connection.
+/**
+ * Initiates the async connect request for connection con.
+ * 
+ * Visibility: public
+ * Concurrency: callable from any thread
+ *
+ * @param con A pointer to the http post connection to connect
+ * @return The pointer to con
+ */
+template <class endpoint>
+typename endpoint_traits<endpoint>::connection_ptr
+client<endpoint>::post(connection_ptr con) {
+	/* TODO: re-implement connect() for http post operation */
+	return NULL;
+}
+
+/// Convenience method, equivalent to post(get_connection(u))
+template <class endpoint>
+typename endpoint_traits<endpoint>::connection_ptr
+client<endpoint>::post(const std::string& u) {
+    return post(get_connection(u));
+}
+
 template <class endpoint>
 void client<endpoint>::handle_connect(connection_ptr con, 
                                       const boost::system::error_code& error)
@@ -477,6 +559,12 @@ void client<endpoint>::connection<connection_type>::write_request() {
     m_request.set_uri(m_uri->get_resource());
     m_request.set_version("HTTP/1.1");
     
+    if (m_uri->get_scheme().find("http") != std::string::npos) {
+        // todo http write request
+
+        return;
+    }
+
     m_request.add_header("Upgrade","websocket");
     m_request.add_header("Connection","Upgrade");
     m_request.replace_header("Sec-WebSocket-Version","13");
@@ -597,6 +685,12 @@ void client<endpoint>::connection<connection_type>::handle_read_response (
             throw http::exception("Could not parse server response.",
                                   http::status_code::BAD_REQUEST);
         }
+        
+        if (m_uri->get_scheme().find("http") != std::string::npos) {
+            // todo http read response
+
+            return;
+	    }
         
         m_endpoint.m_alog->at(log::alevel::DEBUG_HANDSHAKE) << m_response.raw() 
                                                            << log::endl;

@@ -59,6 +59,7 @@ public:
     uri(bool secure, const std::string& host, const std::string& resource);
     uri(bool secure, const std::string& host, const std::string& port, const std::string& resource);
     
+    std::string get_scheme() const;
     bool get_secure() const;
     std::string get_host() const;
     std::string get_host_port() const;
@@ -88,10 +89,13 @@ public:
 private:
     uint16_t get_port_from_string(const std::string& port) const;
     
+    std::string m_scheme;
     bool        m_secure;
+    //std::string m_user_info;
     std::string m_host;
     uint16_t    m_port;
-    std::string m_resource;
+    std::string m_resource; //include path and query;
+    //std::string m_fragment;
 };
 
 typedef boost::shared_ptr<uri> uri_ptr;
