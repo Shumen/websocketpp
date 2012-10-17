@@ -29,8 +29,8 @@
 #define WEBSOCKETPP_ENDPOINT_HPP
 
 #include "connection.hpp"
-#include "sockets/plain.hpp" // should this be here?
 #include "logger/logger.hpp"
+#include "sockets/plain.hpp" // endpoint template default parameter socket = socket::plain
 
 #include <boost/asio.hpp>
 #include <boost/shared_ptr.hpp>
@@ -60,6 +60,9 @@ protected:
     
     boost::asio::io_service m_io_service;
 };
+
+/// forward declare for endpoint use
+template <typename T> struct endpoint_traits;
 
 /// Describes a configurable WebSocket endpoint.
 /**
@@ -578,8 +581,8 @@ struct endpoint_traits< endpoint<role, socket, logger> > {
         // convenience typedefs for use in end application handlers.
         // TODO: figure out how to not duplicate the definition of connection_ptr
         typedef boost::shared_ptr<handler> ptr;
-        typedef typename connection_type::ptr connection_ptr;
         typedef typename message::data::ptr message_ptr;
+        typedef typename connection_type::ptr connection_ptr;
         
         virtual ~handler() {}
         

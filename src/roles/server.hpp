@@ -31,7 +31,7 @@
 #include "../processors/hybi.hpp"
 #include "../processors/hybi_legacy.hpp"
 #include "../rng/blank_rng.hpp"
-
+#include "../logger/logger.hpp"
 #include "../shared_const_buffer.hpp"
 
 #include <boost/algorithm/string.hpp>
@@ -55,7 +55,7 @@ namespace websocketpp {
 
 // Forward declarations
 template <typename T> struct endpoint_traits;
-    
+
 namespace role {
 
 template <class endpoint>
@@ -68,9 +68,15 @@ public:
         typedef connection<connection_type> type;
         typedef endpoint endpoint_type;
         
+        // client connections are friends with their respective client endpoint
+        friend class server<endpoint>;
+        
         // Valid always
         int get_version() const {
             return m_version;
+        }
+        std::string get_method() const {
+            return m_request.method();
         }
         std::string get_request_header(const std::string& key) const {
             return m_request.header(key);
@@ -168,6 +174,7 @@ public:
     typedef server<endpoint> type;
     typedef endpoint endpoint_type;
     
+    typedef typename endpoint_traits<endpoint>::connection_type connection_type;
     typedef typename endpoint_traits<endpoint>::connection_ptr connection_ptr;
     typedef typename endpoint_traits<endpoint>::handler_ptr handler_ptr;
     
@@ -251,9 +258,13 @@ void server<endpoint>::listen(const boost::asio::ip::tcp::endpoint& e,size_t num
         
         m_acceptor.open(e.protocol());
         m_acceptor.set_option(boost::asio::socket_base::reuse_address(true));
+        //this->m_handler->on_tcp_init(); // re-implement set_option() in on_tcp_init()
+        //#ifdef _WIN32 // avoid MITM attack by rebind existing listening port
+        //m_acceptor.set_option(boost::asio::detail::socket_option::integer<SOL_SOCKET, SO_EXCLUSIVEADDRUSE>(true));
+        //#endif
         m_acceptor.bind(e);
         m_acceptor.listen();
-    
+        
         this->start_accept();
     }
     
@@ -739,6 +750,9 @@ void server<endpoint>::connection<connection_type>::handle_write_response(
         if (m_version == -1) {
             // if this was not a websocket connection, we have written 
             // the expected response and the connection can be closed.
+            //TODO: HTTP/1.1 Keep alive
+            //if (m_request.header("Connection") == "Keep-Alive")
+            //    return;
         } else {
             // this was a websocket connection that ended in an error
             m_endpoint.m_elog->at(log::elevel::RERROR) 

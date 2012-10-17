@@ -29,11 +29,10 @@
 #define WEBSOCKETPP_CONNECTION_HPP
 
 #include "common.hpp"
-#include "http/parser.hpp"
-#include "http/mime.hpp"
 #include "logger/logger.hpp"
 
 #include "roles/server.hpp"
+#include "roles/client.hpp"
 
 #include "processors/hybi.hpp"
 
@@ -43,6 +42,7 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/enable_shared_from_this.hpp>
+#include <boost/thread/recursive_mutex.hpp>
 
 #include <iostream> // temporary?
 #include <vector>

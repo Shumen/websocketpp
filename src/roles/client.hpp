@@ -28,19 +28,20 @@
 #ifndef WEBSOCKETPP_ROLE_CLIENT_HPP
 #define WEBSOCKETPP_ROLE_CLIENT_HPP
 
+#include "../processors/hybi.hpp"
+#include "../logger/logger.hpp"
+#include "../shared_const_buffer.hpp"
+
 #include <limits>
 #include <iostream>
 
 #include <boost/cstdint.hpp>
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
+#include <boost/thread.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/random.hpp>
 #include <boost/random/random_device.hpp>
-
-#include "../endpoint.hpp"
-#include "../uri.hpp"
-#include "../shared_const_buffer.hpp"
 
 #ifdef _MSC_VER
 // Disable "warning C4355: 'this' : used in base member initializer list".
@@ -51,6 +52,10 @@
 using boost::asio::ip::tcp;
 
 namespace websocketpp {
+
+// Forward declarations
+template <typename T> struct endpoint_traits;
+
 namespace role {
     
 template <class endpoint>
@@ -199,7 +204,7 @@ public:
         virtual bool on_ping(connection_ptr con,std::string) {return true;}
         virtual void on_pong(connection_ptr con,std::string) {}
         virtual void on_pong_timeout(connection_ptr con,std::string) {}
-        
+        virtual void http(connection_ptr con) {} // send get/post request and receive response
     };
     
     client (boost::asio::io_service& m) 
@@ -211,18 +216,10 @@ public:
                 std::numeric_limits<int32_t>::max()
              )) {}
     
-    connection_ptr get_connection();
+    connection_ptr get_connection(const std::string& u, const std::string& method = "GET", const std::string& content = "");
     
-    connection_ptr get_connection(const std::string& u);
-    
-    connection_ptr connect(const std::string& u);
+    connection_ptr connect(const std::string& u, const std::string& method = "GET", const std::string& content = "");
     connection_ptr connect(connection_ptr con);
-    
-    connection_ptr get(const std::string& u);
-    connection_ptr get(connection_ptr con);
-    
-    connection_ptr post(const std::string& u);
-    connection_ptr post(connection_ptr con);
     
     void run(bool perpetual = false);
     void end_perpetual();
@@ -358,32 +355,6 @@ void client<endpoint>::reset() {
 
 /// Returns a new connection 
 /**
- * Creates and returns a pointer to a new connection suitable for passing
- * to connect()/get()/post(). This method allows applying connection 
- * specific settings before performing the connection, such as set uri and
- * add http header.
- * 
- * Visibility: public
- * State: Valid from IDLE or RUNNING, an exception is thrown otherwise
- * Concurrency: callable from any thread
- *
- * @return The pointer to the new connection
- */
-template <class endpoint>
-typename endpoint_traits<endpoint>::connection_ptr
-client<endpoint>::get_connection() {
-	connection_ptr con = m_endpoint.create_connection();
-	
-	if (!con) {
-		throw websocketpp::exception("get_connection called from invalid state",
-			websocketpp::error::INVALID_STATE);
-	}
-
-	return con;
-}
-
-/// Returns a new connection 
-/**
  * Creates and returns a pointer to a new connection to the given URI suitable for passing
  * to connect(). This method allows applying connection specific settings before 
  * performing the connection.
@@ -393,11 +364,13 @@ client<endpoint>::get_connection() {
  * Concurrency: callable from any thread
  *
  * @param u The URI that this connection will connect to.
+ * @param method The method that this connection will use.
+ * @param content The content that this connection will send.
  * @return The pointer to the new connection
  */
 template <class endpoint>
 typename endpoint_traits<endpoint>::connection_ptr
-client<endpoint>::get_connection(const std::string& u) {
+client<endpoint>::get_connection(const std::string& u, const std::string& method, const std::string& content) {
     try {
         uri_ptr location(new uri(u));
         
@@ -414,6 +387,10 @@ client<endpoint>::get_connection(const std::string& u) {
         }
         
         con->set_uri(location);
+        con->m_request.set_method(method);
+        con->m_request.set_uri(location->get_resource());
+        con->m_request.set_version("HTTP/1.1");
+        con->m_request.set_body(content);
         
         return con;
     } catch (uri_exception& e) {
@@ -460,56 +437,8 @@ client<endpoint>::connect(connection_ptr con) {
 /// Convenience method, equivalent to connect(get_connection(u))
 template <class endpoint>
 typename endpoint_traits<endpoint>::connection_ptr
-client<endpoint>::connect(const std::string& u) {
-    return connect(get_connection(u));
-}
-
-/// Begin the http get connect process for the given connection.
-/**
- * Initiates the async connect request for connection con.
- * 
- * Visibility: public
- * Concurrency: callable from any thread
- *
- * @param con A pointer to the http get connection to connect
- * @return The pointer to con
- */
-template <class endpoint>
-typename endpoint_traits<endpoint>::connection_ptr
-client<endpoint>::get(connection_ptr con) {
-	/* TODO: re-implement connect() for http get operation */
-	return NULL;
-}
-
-/// Convenience method, equivalent to get(get_connection(u))
-template <class endpoint>
-typename endpoint_traits<endpoint>::connection_ptr
-client<endpoint>::get(const std::string& u) {
-    return get(get_connection(u));
-}
-
-/// Begin the http post connect process for the given connection.
-/**
- * Initiates the async connect request for connection con.
- * 
- * Visibility: public
- * Concurrency: callable from any thread
- *
- * @param con A pointer to the http post connection to connect
- * @return The pointer to con
- */
-template <class endpoint>
-typename endpoint_traits<endpoint>::connection_ptr
-client<endpoint>::post(connection_ptr con) {
-	/* TODO: re-implement connect() for http post operation */
-	return NULL;
-}
-
-/// Convenience method, equivalent to post(get_connection(u))
-template <class endpoint>
-typename endpoint_traits<endpoint>::connection_ptr
-client<endpoint>::post(const std::string& u) {
-    return post(get_connection(u));
+client<endpoint>::connect(const std::string& u, const std::string& method, const std::string& content) {
+    return (get_connection(u, method, content));
 }
 
 template <class endpoint>
@@ -554,17 +483,12 @@ template <class connection_type>
 void client<endpoint>::connection<connection_type>::write_request() {
     boost::lock_guard<boost::recursive_mutex> lock(m_connection.m_lock);
     // async write to handle_write
-    
-    m_request.set_method("GET");
-    m_request.set_uri(m_uri->get_resource());
-    m_request.set_version("HTTP/1.1");
-    
     if (m_uri->get_scheme().find("http") != std::string::npos) {
-        // todo http write request
-
+        // call handler->http() to write get/post request by judging it's request
+        m_endpoint.get_handler()->http(m_connection.shared_from_this());
         return;
     }
-
+    
     m_request.add_header("Upgrade","websocket");
     m_request.add_header("Connection","Upgrade");
     m_request.replace_header("Sec-WebSocket-Version","13");
@@ -677,9 +601,9 @@ void client<endpoint>::connection<connection_type>::handle_read_response (
     }
     
     try {
-        std::istream request(&m_connection.buffer());
+        std::istream response(&m_connection.buffer());
         
-        if (!m_response.parse_complete(request)) {
+        if (!m_response.parse_complete(response)) {
             // not a valid HTTP response
             // TODO: this should be a client error
             throw http::exception("Could not parse server response.",
@@ -687,10 +611,30 @@ void client<endpoint>::connection<connection_type>::handle_read_response (
         }
         
         if (m_uri->get_scheme().find("http") != std::string::npos) {
-            // todo http read response
+            // try and read more body contents
+            /*if (m_state != session::state::CLOSED && 
+                m_processor->get_bytes_needed() > 0 && 
+                !m_protocol_error)
+            {
+                // TODO: read timeout timer?
+                boost::asio::async_read(
+                    socket_type::get_socket(),
+                    m_buf,
+                    boost::asio::transfer_at_least(std::min(
+                        m_read_threshold,
+                        static_cast<size_t>(m_processor->get_bytes_needed())
+                    )),
+                    m_strand.wrap(boost::bind(
+                        &m_endpoint.get_handler()->handle_response,
+                        m_endpoint.get_handler(),
+                        boost::asio::placeholders::error
+                    ))
+                );
+            }*/
 
+            m_endpoint.get_handler()->http(m_connection.shared_from_this());
             return;
-	    }
+        }
         
         m_endpoint.m_alog->at(log::alevel::DEBUG_HANDSHAKE) << m_response.raw() 
                                                            << log::endl;

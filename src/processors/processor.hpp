@@ -68,6 +68,7 @@ public:
 } // namespace processor
 } // namespace websocketpp
     
+#include "../http/mime.hpp"
 #include "../http/parser.hpp"
 #include "../uri.hpp"
 #include "../websocket_frame.hpp" // TODO: clean up

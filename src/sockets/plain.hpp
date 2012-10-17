@@ -52,14 +52,23 @@ public:
     // hooks that this policy adds to handlers of connections that use it
     class handler_interface {
     public:
-        virtual void on_tcp_init() {};
+        virtual void on_tcp_init() {
+            /* socket/acceptor */
+            //boost::asio::detail::socket_option::xxx
+            //template <typename SettableSocketOption>
+            //void basic_stream_socket::set_option(const SettableSocketOption & option);
+        }
     };
     
     // Connection specific details
     template <typename connection_type>
     class connection {
     public:
-        // should these two be public or protected. If protected, how?
+        // should these api be public or protected. If protected, how?
+        boost::asio::ip::tcp::socket::native_handle_type& get_native_socket() {
+            return m_socket.native_handle();
+        }
+        
         boost::asio::ip::tcp::socket& get_raw_socket() {
             return m_socket;
         }
@@ -77,7 +86,7 @@ public:
          , m_connection(static_cast< connection_type& >(*this)) {}
         
         void init() {
-            
+            // to create socket type so nothing to do for plain socket
         }
         
         void async_init(socket_init_callback callback) {

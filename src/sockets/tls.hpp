@@ -69,7 +69,11 @@ public:
     // to set up their asio TLS context.
     class handler_interface {
     public:
-        virtual void on_tcp_init() {};
+        virtual void on_tcp_init() {
+            /* context.set_options() */
+            //typedef int options;
+            //void ssl::context::set_options(options o);
+        }
         virtual boost::shared_ptr<boost::asio::ssl::context> on_tls_init() = 0;
     };
     
@@ -77,7 +81,11 @@ public:
     template <typename connection_type>
     class connection {
     public:
-        // should these two be public or protected. If protected, how?
+        // should these api be public or protected. If protected, how?
+        tls_socket::native_handle_type& get_native_socket() {
+            return m_socket_ptr->native_handle();
+        }
+        
         tls_socket::lowest_layer_type& get_raw_socket() {
             return m_socket_ptr->lowest_layer();
         }

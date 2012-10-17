@@ -96,6 +96,22 @@ public:
     void remove_header(const std::string &key) {
         m_headers.erase(key);
     }
+    
+    void set_body(const std::string& value) {
+        if (value.size() == 0) {
+            remove_header("Content-Length");
+            m_body = "";
+            return;
+        }
+        
+        std::stringstream foo;
+        foo << value.size();
+        replace_header("Content-Length", foo.str());
+        m_body = value;
+    }
+    
+    const std::string& body() const { return m_body; }
+    
 protected:
     bool parse_headers(std::istream& s) {
         std::string header;
@@ -133,6 +149,7 @@ protected:
 private:
     std::string m_version;
     header_list m_headers;
+    std::string m_body;
 };
 
 class request : public parser {
@@ -241,7 +258,7 @@ public:
         raw << version() << " " << m_status_code << " " << m_status_msg << "\r\n";
         raw << raw_headers() << "\r\n";
         
-        raw << m_body;
+        raw << body();
         
         return raw.str();
     }
@@ -258,19 +275,6 @@ public:
         m_status_msg = msg;
     }
     
-    void set_body(const std::string& value) {
-        if (value.size() == 0) {
-            remove_header("Content-Length");
-            m_body = "";
-            return;
-        }
-        
-        std::stringstream foo;
-        foo << value.size();
-        replace_header("Content-Length", foo.str());
-        m_body = value;
-    }
-    
     status_code::value get_status_code() const {
         return m_status_code;
     }
@@ -281,7 +285,6 @@ public:
 private:
     status_code::value  m_status_code;
     std::string         m_status_msg;
-    std::string         m_body;
 };
 
 }
