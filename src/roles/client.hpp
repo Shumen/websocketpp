@@ -192,6 +192,8 @@ public:
     // handler interface callback class
     class handler_interface {
     public:
+    	virtual ~handler_interface() {}
+    	
         // Required
         virtual void on_open(connection_ptr con) {}
         virtual void on_close(connection_ptr con) {}
@@ -212,8 +214,8 @@ public:
        m_io_service(m),
        m_gen(m_rng,
              boost::random::uniform_int_distribution<>(
-                std::numeric_limits<int32_t>::min(),
-                std::numeric_limits<int32_t>::max()
+                (std::numeric_limits<int32_t>::min)(),
+                (std::numeric_limits<int32_t>::max)()
              )) {}
     
     connection_ptr get_connection(const std::string& u, const std::string& method = "GET", const std::string& content = "");

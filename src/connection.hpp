@@ -273,13 +273,13 @@ public:
         control->set_payload(payload);
         m_processor->prepare_frame(control);
         
-        m_endpoint.endpoint_base::m_io_service.post(
-            m_strand.wrap(boost::bind(
-                &type::write_message,
-                type::shared_from_this(),
-                control
-            ))
-        );
+        // Using strand post here rather than ioservice.post(strand.wrap)
+        // to ensure that messages are sent in order
+        m_strand.post(boost::bind(
+			&type::write_message,
+			type::shared_from_this(),
+			control
+		));
     }
     
     /// Send Pong
@@ -307,13 +307,13 @@ public:
         control->set_payload(payload);
         m_processor->prepare_frame(control);
         
-        m_endpoint.endpoint_base::m_io_service.post(
-            m_strand.wrap(boost::bind(
-                &type::write_message,
-                type::shared_from_this(),
-                control
-            ))
-        );
+        // Using strand post here rather than ioservice.post(strand.wrap)
+        // to ensure that messages are sent in order
+        m_strand.post(boost::bind(
+			&type::write_message,
+			type::shared_from_this(),
+			control
+		));
     }
     
     /// Return send buffer size (payload bytes)
@@ -618,13 +618,21 @@ public:
             return;
         }
         
-        m_endpoint.endpoint_base::m_io_service.post(
+        // io_service::strand ordering guarantees are not sufficient here to 
+        // make sure that this code is run before any messages are processed.
+        handler_ptr old_handler = m_handler;
+        
+        old_handler->on_unload(type::shared_from_this(),new_handler);
+        m_handler = new_handler;
+        new_handler->on_load(type::shared_from_this(),old_handler);
+        
+        /*m_endpoint.endpoint_base::m_io_service.post(
             m_strand.wrap(boost::bind(
                 &type::set_handler_internal,
                 type::shared_from_this(),
                 new_handler
             ))
-        );
+        );*/
     }
     
     /// Set connection read threshold
@@ -1074,13 +1082,13 @@ public:
         msg->reset(frame::opcode::CLOSE);
         m_processor->prepare_close_frame(msg,m_local_close_code,m_local_close_reason);
         
-        m_endpoint.endpoint_base::m_io_service.post(
-            m_strand.wrap(boost::bind(
-                &type::write_message,
-                type::shared_from_this(),
-                msg
-            ))
-        );
+        // Using strand post here rather than ioservice.post(strand.wrap)
+        // to ensure that messages are sent in order
+        m_strand.post(boost::bind(
+			&type::write_message,
+			type::shared_from_this(),
+			msg
+		));
     }
     
     /// send an acknowledgement close frame
@@ -1138,13 +1146,14 @@ public:
         msg->reset(frame::opcode::CLOSE);
         m_processor->prepare_close_frame(msg,m_local_close_code,m_local_close_reason);
         
-        m_endpoint.endpoint_base::m_io_service.post(
-            m_strand.wrap(boost::bind(
-                &type::write_message,
-                type::shared_from_this(),
-                msg
-            ))
-        );
+        // Using strand post here rather than ioservice.post(strand.wrap)
+        // to ensure that messages are sent in order
+        m_strand.post(boost::bind(
+			&type::write_message,
+			type::shared_from_this(),
+			msg
+		));
+
         //m_write_state = INTURRUPT;        
     }
     
@@ -1582,13 +1591,13 @@ void connection<endpoint,role,socket>::send(message::data_ptr msg) {
     
     m_processor->prepare_frame(msg);
     
-    m_endpoint.endpoint_base::m_io_service.post(
-        m_strand.wrap(boost::bind(
-            &type::write_message,
-            type::shared_from_this(),
-            msg
-        ))
-    );
+    // Using strand post here rather than ioservice.post(strand.wrap)
+	// to ensure that messages are sent in order
+	m_strand.post(boost::bind(
+		&type::write_message,
+		type::shared_from_this(),
+		msg
+	));
 }
 
 } // namespace websocketpp
