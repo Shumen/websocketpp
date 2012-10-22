@@ -112,6 +112,8 @@ public:
     
     const std::string& body() const { return m_body; }
     
+    parser() : m_version("HTTP/1.1") {}
+    
 protected:
     bool parse_headers(std::istream& s) {
         std::string header;
@@ -214,6 +216,8 @@ public:
     const std::string& uri() const {
         return m_uri;
     }
+    
+    request() : m_method("GET"), m_uri("/") {}
     
 private:
     std::string m_method;

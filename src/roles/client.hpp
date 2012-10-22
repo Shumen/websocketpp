@@ -40,6 +40,7 @@
 #include <boost/bind.hpp>
 #include <boost/thread.hpp>
 #include <boost/shared_ptr.hpp>
+#include <boost/lexical_cast.hpp>
 #include <boost/random.hpp>
 #include <boost/random/random_device.hpp>
 
@@ -192,8 +193,8 @@ public:
     // handler interface callback class
     class handler_interface {
     public:
-    	virtual ~handler_interface() {}
-    	
+        virtual ~handler_interface() {}
+        
         // Required
         virtual void on_open(connection_ptr con) {}
         virtual void on_close(connection_ptr con) {}
@@ -389,9 +390,8 @@ client<endpoint>::get_connection(const std::string& u, const std::string& method
         }
         
         con->set_uri(location);
-        con->m_request.set_method(method);
         con->m_request.set_uri(location->get_resource());
-        con->m_request.set_version("HTTP/1.1");
+        con->m_request.set_method(method);
         con->m_request.set_body(content);
         
         return con;
@@ -486,8 +486,26 @@ void client<endpoint>::connection<connection_type>::write_request() {
     boost::lock_guard<boost::recursive_mutex> lock(m_connection.m_lock);
     // async write to handle_write
     if (m_uri->get_scheme().find("http") != std::string::npos) {
-        // call handler->http() to write get/post request by judging it's request
-        m_endpoint.get_handler()->http(m_connection.shared_from_this());
+        m_request.replace_header("Host",m_uri->get_host_port());
+        if (m_request.header("User-Agent") == "")
+            m_request.replace_header("User-Agent",USER_AGENT);
+        //if (m_request.method() == "POST")
+        //    m_request.replace_header("Content-Type","Mime-Type");
+        shared_const_buffer buffer(m_request.raw());
+    
+        //std::string raw = m_request.raw();
+        //m_endpoint.m_alog->at(log::alevel::DEBUG_HANDSHAKE) << raw << log::endl;
+    
+        boost::asio::async_write(
+            m_connection.get_socket(),
+            //boost::asio::buffer(raw),
+            buffer,
+            m_connection.get_strand().wrap(boost::bind(
+                &type::handle_write_request,
+                m_connection.shared_from_this(),
+                boost::asio::placeholders::error
+            ))
+        );
         return;
     }
     
@@ -613,28 +631,20 @@ void client<endpoint>::connection<connection_type>::handle_read_response (
         }
         
         if (m_uri->get_scheme().find("http") != std::string::npos) {
-            // try and read more body contents
-            /*if (m_state != session::state::CLOSED && 
-                m_processor->get_bytes_needed() > 0 && 
-                !m_protocol_error)
-            {
-                // TODO: read timeout timer?
-                boost::asio::async_read(
-                    socket_type::get_socket(),
-                    m_buf,
-                    boost::asio::transfer_at_least(std::min(
-                        m_read_threshold,
-                        static_cast<size_t>(m_processor->get_bytes_needed())
-                    )),
-                    m_strand.wrap(boost::bind(
-                        &m_endpoint.get_handler()->handle_response,
-                        m_endpoint.get_handler(),
-                        boost::asio::placeholders::error
-                    ))
-                );
-            }*/
-
-            m_endpoint.get_handler()->http(m_connection.shared_from_this());
+            // get content length to read all the contents
+            size_t len = boost::lexical_cast<size_t, std::string>(m_response.header("Content-Length"));
+            // TODO: read timeout timer?
+            boost::asio::async_read(
+                m_connection.get_socket(),
+                m_connection.buffer(),
+                boost::asio::transfer_at_least(len),
+                m_connection.get_strand().wrap(boost::bind(
+                    &endpoint_type::handler::http,
+                    m_connection.get_handler(),
+                    m_connection.shared_from_this()
+                ))
+            );
+            
             return;
         }
         
